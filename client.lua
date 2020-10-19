@@ -337,38 +337,77 @@ local function _calculateLinesForDrawingGrid(poly)
   return lines
 end
 
+local function loadGridCache(poly, options)
+  if not poly.gridCacheKey then return end
+  local gridCache = GetResourceKvpString("__polyzone_grid")
+  if gridCache == nil then return end
+  gridCache = json.decode(gridCache)
+  gridCache = gridCache[poly.gridCacheKey]
+  if gridCache == nil then return end
+  poly.grid = gridCache.grid
+  poly.gridCoverage = gridCache.gridCoverage
+  if options.debugGrid then
+    poly.lines = gridCache.lines
+    for i=1, #poly.lines do
+      local line = poly.lines[i]
+      line.min = vector2(line.min.x, line.min.y)
+      line.max = vector2(line.max.x, line.max.y)
+    end
+  end
+end
+
+local function saveGridCache(poly)
+  if not poly.gridCacheKey then return end
+  local gridCache = GetResourceKvpString("__polyzone_grid")
+  if gridCache == nil then
+    gridCache = {}
+  else
+    gridCache = json.decode(gridCache)
+  end
+  gridCache[poly.gridCacheKey] = {
+    grid=poly.grid, gridCoverage=poly.gridCoverage, lines=poly.lines
+  }
+  SetResourceKvp("__polyzone_grid", json.encode(gridCache))
+end
 
 -- Calculate for each grid cell whether it is entirely inside the polygon, and store if true
 local function _createGrid(poly, options)
   Citizen.CreateThread(function()
-    -- Calculate all grid cells that are entirely inside the polygon
-    local isInside = {}
-    local gridCellArea = poly.gridCellWidth * poly.gridCellHeight
-    for y=1, poly.gridDivisions do
-      Citizen.Wait(0)
-      isInside[y] = {}
-      for x=1, poly.gridDivisions do
-        if _isGridCellInsidePoly(x-1, y-1, poly) then
-          poly.gridArea = poly.gridArea + gridCellArea
-          isInside[y][x] = true
+    if not poly.grid or (not poly.lines or #poly.lines == 0) then
+      -- Calculate all grid cells that are entirely inside the polygon
+      local isInside = {}
+      local gridCellArea = poly.gridCellWidth * poly.gridCellHeight
+      for y=1, poly.gridDivisions do
+        Citizen.Wait(0)
+        isInside[y] = {}
+        for x=1, poly.gridDivisions do
+          if _isGridCellInsidePoly(x-1, y-1, poly) then
+            poly.gridArea = poly.gridArea + gridCellArea
+            isInside[y][x] = true
+          end
         end
       end
+      poly.grid = isInside
+      poly.gridCoverage = poly.gridArea / poly.area
+      -- A lot of memory is used by this pre-calc. Force a gc collect after to clear it out
+      collectgarbage("collect")
     end
-    poly.grid = isInside
-    poly.gridCoverage = poly.gridArea / poly.area
-    -- A lot of memory is used by this pre-calc. Force a gc collect after to clear it out
-    collectgarbage("collect")
 
     if options.debugGrid then
       local coverage = string.format("%.2f", poly.gridCoverage * 100)
       print("[PolyZone] Debug: Grid Coverage at " .. coverage .. "% with " .. poly.gridDivisions
       .. " divisions. Optimal coverage for memory usage and startup time is 80-90%")
 
-      Citizen.CreateThread(function()
-        poly.lines = _calculateLinesForDrawingGrid(poly)
-        -- A lot of memory is used by this pre-calc. Force a gc collect after to clear it out
-        collectgarbage("collect")
-      end)
+      if #poly.lines == 0 then
+        Citizen.CreateThread(function()
+          poly.lines = _calculateLinesForDrawingGrid(poly)
+          -- A lot of memory is used by this pre-calc. Force a gc collect after to clear it out
+          collectgarbage("collect")
+          saveGridCache(poly)
+        end)
+      end
+    else
+      saveGridCache(poly)
     end
   end)
 end
@@ -392,10 +431,13 @@ local function _calculatePoly(poly, options)
   poly.center = (poly.max + poly.min) / 2
   poly.area = _calculatePolygonArea(poly.points)
   if poly.useGrid then
-    if options.debugGrid then
+    if poly.name then
+      loadGridCache(poly, options)
+    end
+    if options.debugGrid and (not poly.lines or #poly.lines == 0) then
       poly.gridXPoints = {}
       poly.gridYPoints = {}
-      poly.lines = {}
+      poly.lines = poly.lines or {}
     end
     poly.gridArea = 0.0
     poly.gridCellWidth = poly.size.x / poly.gridDivisions
@@ -446,6 +488,7 @@ function PolyZone:new(points, options)
     maxZ = tonumber(options.maxZ) or nil,
     useGrid = useGrid,
     gridDivisions = tonumber(options.gridDivisions) or 30,
+    gridCacheKey = options.gridCacheKey,
     debugColors = options.debugColors or {},
     debugPoly = options.debugPoly or false,
     debugGrid = options.debugGrid or false,
