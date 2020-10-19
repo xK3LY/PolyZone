@@ -132,7 +132,12 @@ function ComboZone:new(zones, options)
     if zone then
       zone.id = i
     end
-    _addZoneToRows(rows, zone)
+    if zone.isEntityZone then
+      if self.entityZones == nil then self.entityZones = {} end
+      self.entityZones[#self.entityZones + 1] = zone
+    else
+      _addZoneToRows(rows, zone)
+    end
   end
 
   local useGrid = options.useGrid
@@ -185,7 +190,12 @@ function ComboZone:AddZone(zone)
   zone.id = newIndex
   zones[newIndex] = zone
   self.grid = {}
-  _addZoneToRows(self.rows, zone)
+  if zone.isEntityZone then
+    if self.entityZones == nil then self.entityZones = {} end
+    self.entityZones[#self.entityZones + 1] = zone
+  else
+    _addZoneToRows(self.rows, zone)
+  end
   if self.useGrid == nil and newIndex >= 25 then
     self.useGrid = true
   end
@@ -198,12 +208,21 @@ function ComboZone:isPointInside(point)
   end
 
   local zones = self:getZones(point)
-  if #zones == 0 then return false end
+  local entityZones = self.entityZones
+  if #zones == 0 and entityZones == nil then return false end
 
   for i=1, #zones do
     local zone = zones[i]
     if zone and zone:isPointInside(point) then
       return true, zone
+    end
+  end
+  if entityZones ~= nil and self.useGrid then
+    for i=1, #entityZones do
+      local zone = entityZones[i]
+      if zone and zone:isPointInside(point) then
+        return true, zone
+      end
     end
   end
   return false, nil
@@ -221,11 +240,20 @@ function ComboZone:isPointInsideExhaustive(point, insideZones)
     insideZones = {}
   end
   local zones = self:getZones(point)
-  if #zones == 0 then return false, insideZones end
+  local entityZones = self.entityZones
+  if #zones == 0 and entityZones == nil then return false, insideZones end
   for i=1, #zones do
     local zone = zones[i]
     if zone and zone:isPointInside(point) then
       insideZones[#insideZones+1] = zone
+    end
+  end
+  if entityZones ~= nil and self.useGrid then
+    for i=1, #entityZones do
+      local zone = entityZones[i]
+      if zone and zone:isPointInside(point) then
+        insideZones[#insideZones+1] = zone
+      end
     end
   end
   return #insideZones > 0, insideZones
