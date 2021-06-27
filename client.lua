@@ -114,10 +114,10 @@ function _drawWall(p1, p2, minZ, maxZ, r, g, b, a)
   local bottomRight = vector3(p2.x, p2.y, minZ)
   local topRight = vector3(p2.x, p2.y, maxZ)
   
-  DrawPoly(bottomLeft,topLeft,bottomRight,r,g,b,a)
-  DrawPoly(topLeft,topRight,bottomRight,r,g,b,a)
-  DrawPoly(bottomRight,topRight,topLeft,r,g,b,a)
-  DrawPoly(bottomRight,topLeft,bottomLeft,r,g,b,a)
+  _drawPoly(bottomLeft,topLeft,bottomRight,r,g,b,a)
+  _drawPoly(topLeft,topRight,bottomRight,r,g,b,a)
+  _drawPoly(bottomRight,topRight,topLeft,r,g,b,a)
+  _drawPoly(bottomRight,topLeft,bottomLeft,r,g,b,a)
 end
 
 function PolyZone:TransformPoint(point)
@@ -139,11 +139,11 @@ function PolyZone:draw()
   local points = self.points
   for i=1, #points do
     local point = self:TransformPoint(points[i])
-    DrawLine(point.x, point.y, minZ, point.x, point.y, maxZ, oR, oG, oB, 164)
+    _drawLine(point.x, point.y, minZ, point.x, point.y, maxZ, oR, oG, oB, 164)
 
     if i < #points then
       local p2 = self:TransformPoint(points[i+1])
-      DrawLine(point.x, point.y, maxZ, p2.x, p2.y, maxZ, oR, oG, oB, 184)
+      _drawLine(point.x, point.y, maxZ, p2.x, p2.y, maxZ, oR, oG, oB, 184)
       _drawWall(point, p2, minZ, maxZ, wR, wG, wB, 48)
     end
   end
@@ -151,7 +151,7 @@ function PolyZone:draw()
   if #points > 2 then
     local firstPoint = self:TransformPoint(points[1])
     local lastPoint = self:TransformPoint(points[#points])
-    DrawLine(firstPoint.x, firstPoint.y, maxZ, lastPoint.x, lastPoint.y, maxZ, oR, oG, oB, 184)
+    _drawLine(firstPoint.x, firstPoint.y, maxZ, lastPoint.x, lastPoint.y, maxZ, oR, oG, oB, 184)
     _drawWall(firstPoint, lastPoint, minZ, maxZ, wR, wG, wB, 48)
   end
 end
@@ -178,7 +178,7 @@ local function _drawGrid(poly)
     local line = lines[i]
     local min = line.min
     local max = line.max
-    DrawLine(min.x + 0.0, min.y + 0.0, maxZ + 0.0, max.x + 0.0, max.y + 0.0, maxZ + 0.0, r, g, b, 196)
+    _drawLine(min.x + 0.0, min.y + 0.0, maxZ + 0.0, max.x + 0.0, max.y + 0.0, maxZ + 0.0, r, g, b, 196)
   end
 end
 
@@ -592,4 +592,128 @@ end
 
 function PolyZone:getBoundingBoxCenter()
   return self.center
+end
+
+-- RDR3 compatibility
+local _manifestGame = GetResourceMetadata(GetCurrentResourceName(), "game", 0)
+
+local _markerTypes = {
+  [1] = 0x94FDAE17,
+  [28] = 0x50638AB9
+}
+
+local _controlsHashes = {
+  [19] = `INPUT_HUD_SPECIAL`,
+  [20] = `INPUT_FRONTEND_LS`,
+  [21] = `INPUT_SPRINT`,
+  [27] = `INPUT_FRONTEND_UP`,
+  [36] = `INPUT_DUCK`,
+  [81] = `INPUT_SELECT_NEXT_WEAPON`,
+  [99] = `INPUT_SELECT_PREV_WEAPON`,
+  [173] = `INPUT_FRONTEND_DOWN`,
+  [174] = `INPUT_FRONTEND_LEFT`,
+  [175] = `INPUT_FRONTEND_RIGHT`
+}
+
+function _isRedM()
+  return (_manifestGame == "rdr3")
+end
+
+local _oldDrawLine = DrawLine
+function _drawLine(...)
+  if _isRedM() then
+    Citizen.InvokeNative(`DRAW_LINE` & 0xFFFFFFFF, ...)
+  else
+    _oldDrawLine(...)
+  end
+end
+
+local _oldDrawPoly = DrawPoly
+function _drawPoly(...)
+  if _isRedM() then
+    Citizen.InvokeNative(`DRAW_POLY` & 0xFFFFFFFF, ...)
+  else
+    _oldDrawPoly(...)
+  end
+end
+
+local _oldDrawMarker = DrawMarker
+function _drawMarker(...)
+  if _isRedM() then
+    local args = table.pack(...)
+    args[1] = _markerTypes[args[1]]
+
+    Citizen.InvokeNative(0x2A32FAA57B937173, table.unpack(args))
+  else
+    _oldDrawMarker(...)
+  end
+end
+
+local _oldBlockWeaponWheelThisFrame = BlockWeaponWheelThisFrame
+function _blockWeaponWheelThisFrame()
+  if _isRedM() then
+    DisableControlAction(0, `INPUT_OPEN_WHEEL_MENU`, true)
+  else
+    _oldBlockWeaponWheelThisFrame()
+  end
+end
+
+local _oldDisableControlAction = DisableControlAction
+function _disableControlAction(...)
+  if _isRedM() then
+    local args = table.pack(...)
+    args[2] = _controlsHashes[args[2]]
+
+    Citizen.InvokeNative(0xFE99B66D079CF6BC, table.unpack(args))
+  else
+    _oldDisableControlAction(...)
+  end
+end
+
+local _oldIsDisabledControlJustPressed = IsDisabledControlJustPressed
+function _isDisabledControlJustPressed(...)
+  if _isRedM() then
+    local args = table.pack(...)
+    args[2] = _controlsHashes[args[2]]
+
+    return Citizen.InvokeNative(0x91AEF906BCA88877, table.unpack(args))
+  else
+    _oldIsDisabledControlJustPressed(...)
+  end
+end
+
+local _oldIsDisabledControlPressed = IsDisabledControlPressed
+function _isDisabledControlPressed(...)
+  if _isRedM() then
+    local args = table.pack(...)
+    args[2] = _controlsHashes[args[2]]
+
+    return Citizen.InvokeNative(0xE2587F8CBBD87B1D, table.unpack(args))
+  else
+    _oldIsDisabledControlPressed(...)
+  end
+end
+
+local _oldIsControlJustPressed = IsControlJustPressed
+function _isControlJustPressed(...)
+  if _isRedM() then
+    local args = table.pack(...)
+    args[2] = _controlsHashes[args[2]]
+
+    return Citizen.InvokeNative(0x580417101DDB492F, table.unpack(args))
+  else
+    _oldIsControlJustPressed(...)
+  end
+end
+
+local _oldIsControlPressed = IsControlPressed
+function _isControlPressed(...)
+  if _isRedM() then
+    local args = table.pack(...)
+    args[2] = _controlsHashes[args[2]]
+
+    return Citizen.InvokeNative(0xF3A21BCD95725A4A, table.unpack(args))
+  else
+    _oldIsControlPressed(...)
+  end
 end

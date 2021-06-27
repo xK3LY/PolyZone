@@ -1,26 +1,26 @@
 local function handleInput(radius, center, useZ)
   local delta = 0.05
-  BlockWeaponWheelThisFrame()
-  DisableControlAction(0, 36, true)
-  DisableControlAction(0, 81, true)
-  if IsDisabledControlPressed(0, 36) then -- ctrl held down
+  _blockWeaponWheelThisFrame()
+  _disableControlAction(0, 36, true)
+  _disableControlAction(0, 81, true)
+  if _isDisabledControlPressed(0, 36) then -- ctrl held down
     delta = 0.01
   end
-  if IsDisabledControlJustPressed(0, 81) then
-    if IsControlPressed(0, 19) then -- alt held down
+  if _isDisabledControlJustPressed(0, 81) then
+    if _isControlPressed(0, 19) then -- alt held down
       return radius, vector3(center.x, center.y, center.z - delta), useZ
     end
     return math.max(0.0, radius - delta), center, useZ
   end
-  DisableControlAction(0, 99, true)
-  if IsDisabledControlJustPressed(0, 99) then
-    if IsControlPressed(0, 19) then -- alt held down
+  _disableControlAction(0, 99, true)
+  if _isDisabledControlJustPressed(0, 99) then
+    if _isControlPressed(0, 19) then -- alt held down
       return radius, vector3(center.x, center.y, center.z + delta), useZ
     end
     return radius + delta, center, useZ
   end
 
-  if IsControlJustPressed(0, 20) then -- Z pressed
+  if _isControlJustPressed(0, 20) then -- Z pressed
     return radius, center, not useZ
   end
 

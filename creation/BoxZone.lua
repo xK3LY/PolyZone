@@ -1,29 +1,29 @@
 local function handleInput(useZ, heading, length, width, center)
   if not useZ then
     local scaleDelta, headingDelta = 0.2, 5
-    BlockWeaponWheelThisFrame()
-    DisableControlAction(0, 36, true)
-    if IsDisabledControlPressed(0, 36) then -- ctrl held down
+    _blockWeaponWheelThisFrame()
+    _disableControlAction(0, 36, true)
+    if _isDisabledControlPressed(0, 36) then -- ctrl held down
       scaleDelta, headingDelta = 0.05, 1
     end
 
-    DisableControlAction(0, 81, true)
-    if IsDisabledControlJustPressed(0, 81) then
-      if IsControlPressed(0, 19) then -- alt held down
+    _disableControlAction(0, 81, true)
+    if _isDisabledControlJustPressed(0, 81) then
+      if _isControlPressed(0, 19) then -- alt held down
         return heading, length, math.max(0.0, width - scaleDelta), center
       end
-      if IsControlPressed(0, 21) then -- shift held down
+      if _isControlPressed(0, 21) then -- shift held down
         return heading, math.max(0.0, length - scaleDelta), width, center
       end
       return (heading - headingDelta) % 360, length, width, center
     end
     
-    DisableControlAction(0, 99, true)
-    if IsDisabledControlJustPressed(0, 99) then
-      if IsControlPressed(0, 19) then -- alt held down
+    _disableControlAction(0, 99, true)
+    if _isDisabledControlJustPressed(0, 99) then
+      if _isControlPressed(0, 19) then -- alt held down
         return heading, length, math.max(0.0, width + scaleDelta), center
       end
-      if IsControlPressed(0, 21) then -- shift held down
+      if _isControlPressed(0, 21) then -- shift held down
         return heading, math.max(0.0, length + scaleDelta), width, center
       end
       return (heading + headingDelta) % 360, length, width, center
@@ -38,29 +38,29 @@ end
 
 function handleZ(minZ, maxZ)
   local delta = 0.2
-  DisableControlAction(0, 36, true)
-  if IsDisabledControlPressed(0, 36) then -- ctrl held down
+  _disableControlAction(0, 36, true)
+  if _isDisabledControlPressed(0, 36) then -- ctrl held down
     delta = 0.05
   end
 
-  BlockWeaponWheelThisFrame()
-  DisableControlAction(0, 81, true)
-  if IsDisabledControlJustPressed(0, 81) then
-    if IsControlPressed(0, 19) then -- alt held down
+  _blockWeaponWheelThisFrame()
+  _disableControlAction(0, 81, true)
+  if _isDisabledControlJustPressed(0, 81) then
+    if _isControlPressed(0, 19) then -- alt held down
       return minZ - delta, maxZ
     end
-    if IsControlPressed(0, 21) then -- shift held down
+    if _isControlPressed(0, 21) then -- shift held down
       return minZ, maxZ - delta
     end
     return minZ - delta, maxZ - delta
   end
   
-  DisableControlAction(0, 99, true)
-  if IsDisabledControlJustPressed(0, 99) then
-    if IsControlPressed(0, 19) then -- alt held down
+  _disableControlAction(0, 99, true)
+  if _isDisabledControlJustPressed(0, 99) then
+    if _isControlPressed(0, 19) then -- alt held down
       return minZ + delta, maxZ
     end
-    if IsControlPressed(0, 21) then -- shift held down
+    if _isControlPressed(0, 21) then -- shift held down
       return minZ, maxZ + delta
     end
     return minZ + delta, maxZ + delta
@@ -82,7 +82,7 @@ function boxStart(name, heading, length, width, minHeight, maxHeight)
   end
   Citizen.CreateThread(function()
     while createdZone do
-      if IsControlJustPressed(0, 20) then -- Z pressed
+      if _isControlJustPressed(0, 20) then -- Z pressed
         useZ = not useZ
         if useZ then
           createdZone.debugColors.walls = {255, 0, 0}
