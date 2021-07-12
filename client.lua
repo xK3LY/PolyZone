@@ -616,6 +616,10 @@ local _controlsHashes = {
 }
 
 function _isRedM()
+  if GetCurrentGameName and type(GetCurrentGameName) == "function" then
+    return GetCurrentGameName() == "rdr3"
+  end
+
   return (_manifestGame == "rdr3")
 end
 
